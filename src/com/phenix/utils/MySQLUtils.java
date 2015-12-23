@@ -1,4 +1,4 @@
-package main;
+package com.phenix.utils;
 
 import java.io.IOException;
 import java.io.InputStream; 

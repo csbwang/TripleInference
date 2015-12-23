@@ -1,4 +1,4 @@
-package main;
+package com.phenix.data;
 
 public class Triple {
 	public String entity_1;
