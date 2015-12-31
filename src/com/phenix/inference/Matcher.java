@@ -141,6 +141,7 @@ public class Matcher {
 					break;
 				}
 			}
+			if(eSet == null)continue;
 			Triple condition2 = null;
 			for(Triple condition: rule.leftHandSide)
 			{

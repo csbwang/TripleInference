@@ -17,8 +17,12 @@ private PeopleRelatedSearch(){}
 	
 public HashMap<String, String> getRelatedPeople(String peopleId) throws SQLException
 {
-	Triple tripleQuery = new Triple(peopleId, "WorkAff", "?x");
-	return TripleSearch.getInstance().getAnswer(tripleQuery);
+	HashMap<String, String> relatedPeopleSet = null;
+	Triple tripleQuery = new Triple(peopleId, "pWorkPro", "?x");
+	relatedPeopleSet =  TripleSearch.getInstance().getAnswer(tripleQuery);
+	tripleQuery = new Triple(peopleId, "WorkAff", "?x");
+	relatedPeopleSet.putAll(TripleSearch.getInstance().getAnswer(tripleQuery));
+	return relatedPeopleSet;
 }
 
 public HashMap<String, String> getRelatedProject(String peopleId) throws SQLException
