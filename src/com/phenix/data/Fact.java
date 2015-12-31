@@ -21,15 +21,27 @@ public class Fact {
 	
 	private String getEntitySearchSql(Triple tripleQuery)
 	{
+		String relation = tripleQuery.relation;
+		switch (relation)
+		{
+			case "affLeadPro":
+				this.tableName = "techsearch.enterprise_project_affleadpro_name";
+				break;
+			case "pWorkAff":
+				this.tableName = "techsearch.people_enterprise_pworkaff_name";
+				break;
+			case "pLeadPro":
+				this.tableName = "techsearch.people_project_pleadpro_name";
+				break;
+			default:
+				return null;
+		}
 		if(tripleQuery.entity_1.equals("?x"))
 			return  "select e1 from " + tableName + " where e2=" + "\"" + 
-				tripleQuery.entity_2 + "\" and " + "relation=" + "\"" + tripleQuery.relation + "\"";
-		if(tripleQuery.relation.equals("?x"))
-			return  "select relation from " + tableName + " where e1=" + "\"" + 
-			tripleQuery.entity_1 + "\" and " + "e2=" + "\"" + tripleQuery.entity_2 + "\"";
+				tripleQuery.entity_2 + "\"";
 		if(tripleQuery.entity_2.equals("?x"))
 			return  "select e2 from " + tableName + " where e1=" + "\"" + 
-				tripleQuery.entity_1 + "\" and " + "relation=" + "\"" + tripleQuery.relation + "\"";
+				tripleQuery.entity_1 + "\"";
 		else
 			return null;
 	}
@@ -37,11 +49,14 @@ public class Fact {
 	{
 		List<String> facts = new ArrayList<String>();
 		String sql = getEntitySearchSql(tripleQuery);
+		System.out.println(sql);
 		if(sql != null)
 		{
 			ResultSet rs = MySQLUtils.getResultSetFromPro(sql);
 			while(rs.next())
 			{
+				if(rs.getString(1).equals("") || rs.getString(1)==null || rs.getString(1).length()==0)
+					continue;
 				facts.add(rs.getString(1));
 			}
 		}
