@@ -25,22 +25,22 @@ public class Fact {
 		switch (relation)
 		{
 			case "affLeadPro":
-				this.tableName = "techsearch.enterprise_project_affleadpro_name";
+				this.tableName = "enterprise_project_affleadpro";
 				break;
 			case "pWorkAff":
-				this.tableName = "techsearch.people_enterprise_pworkaff_name";
+				this.tableName = "people_enterprise_pworkaff";
 				break;
 			case "pLeadPro":
-				this.tableName = "techsearch.people_project_pleadpro_name";
+				this.tableName = "people_project_pleadpro";
 				break;
 			default:
 				return null;
 		}
 		if(tripleQuery.entity_1.equals("?x"))
-			return  "select e1 from " + tableName + " where e2=" + "\"" + 
+			return  "select e1_id from " + tableName + " where e2_id=" + "\"" + 
 				tripleQuery.entity_2 + "\"";
 		if(tripleQuery.entity_2.equals("?x"))
-			return  "select e2 from " + tableName + " where e1=" + "\"" + 
+			return  "select e2_id from " + tableName + " where e1_id=" + "\"" + 
 				tripleQuery.entity_1 + "\"";
 		else
 			return null;
@@ -49,7 +49,7 @@ public class Fact {
 	{
 		List<String> facts = new ArrayList<String>();
 		String sql = getEntitySearchSql(tripleQuery);
-		System.out.println(sql);
+//		System.out.println(sql);
 		if(sql != null)
 		{
 			ResultSet rs = MySQLUtils.getResultSetFromPro(sql);
