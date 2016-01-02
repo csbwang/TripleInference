@@ -1,7 +1,9 @@
 package com.phenix.inference;
 
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,54 +11,41 @@ import java.util.List;
 import com.phenix.data.Fact;
 import com.phenix.data.Rule;
 import com.phenix.data.Triple;
+import com.phenix.search.Search;
 import com.phenix.utils.MySQLUtils;
 
 public class Matcher {
 	private static final Matcher Instance = new Matcher();
+	private List<Rule> ruleBase = null;
 	
 	public static Matcher getInstance()
 	{
-		Instance.initRuleBase();
+		if(Instance.ruleBase == null)
+			Instance.initRuleBase();
 		return Instance;
 	}
 	
 	private Matcher(){}
-	private String tableName = "rules";
-	private List<Rule> ruleBase;
-	private List<String> entity;//用于辅助三元组合法性的判断
 	
 	/**
 	 * 初始化规则库
 	 */
 	private void initRuleBase()
 	{
+		Connection conn = Search.conn;
 		List<Rule> ruleBase = new ArrayList<Rule>();
-		String sql = "select * from " + this.tableName;
-		ResultSet rs = MySQLUtils.getResultSetFromPro(sql);
+		String sql = "select * from inference_rules";
 		try {
+			Statement stmt = conn.createStatement();
+			ResultSet rs = stmt.executeQuery(sql);
 			while(rs.next())
 			{
 				ruleBase.add(new Rule(rs.getString(2), rs.getString(3)));
 			}
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.out.println(e);
 		}
 		this.ruleBase = ruleBase;
-	}
-	
-	/**
-	 * 判断此三元组查询语句是否合法，合法性包含以下三点：
-	 * 1.该语句包含的实体和关系都存在于现有facts中
-	 * 2.如果是查询关系时，该语句中两个实体不能相同
-	 * 3.该查询语句必须包含两个有效值和一个"?x"，(?x)的位置代表了要查询的信息
-	 * @param tripleQuery
-	 * @return
-	 */
-	private boolean isLegalTripleQuery(Triple tripleQuery)
-	{
-		//后面补充
-		return true;
 	}
 	
 	/**
@@ -115,8 +104,13 @@ public class Matcher {
 		HashMap<String, String> result = new HashMap<String, String>();
 		HashMap<String, String> tripleTag = new HashMap<String, String>();
 		HashMap<String, String> ruleTripleTag = new HashMap<String, String>();
+		outer:
 		for(Rule rule : vaildRules)
 		{
+			if(!tripleTag.isEmpty())
+				tripleTag.clear();
+			if(!ruleTripleTag.isEmpty())
+				ruleTripleTag.clear();
 			List<String> eSet = null;
 			Triple rhs = rule.rightHandSide;//规则结果
 			tripleTag.put(rhs.entity_1, tripleQuery.entity_1);
@@ -124,6 +118,9 @@ public class Matcher {
 			Triple condition1=null;
 			for(Triple condition: rule.leftHandSide)//规则条件
 			{
+				//此条件中的关系不存在，则放弃这条规则
+				if(!Fact.getInstance().relationViews.containsKey(condition.relation))
+					continue outer;
 				if((tripleTag.containsKey(condition.entity_1) && !tripleTag.get(condition.entity_1).equals("?x")) ||
 						(tripleTag.containsKey(condition.entity_2) && !tripleTag.get(condition.entity_2).equals("?x")))
 				{
@@ -137,6 +134,7 @@ public class Matcher {
 						Triple factSearchTriple = new Triple("?x", condition.relation, tripleTag.get(condition.entity_2));
 						eSet = Fact.getInstance().getFacts(factSearchTriple);
 					}
+					//如果这个condition是可查询的triple，则先使用这个条件，推出循环
 					condition1 = condition;
 					break;
 				}
@@ -148,6 +146,9 @@ public class Matcher {
 				if(condition1!=condition)
 					condition2 = condition;
 			}
+			//此条件中的关系不存在，则放弃这条规则
+			if(!Fact.getInstance().relationViews.containsKey(condition2.relation))
+				continue;
 			List<String> eSet2 = null;
 			if(eSet != null)
 			{
@@ -187,15 +188,14 @@ public class Matcher {
 					}
 				}
 			}
-			tripleTag.clear();
-			ruleTripleTag.clear();
 		}
 		return result;
 	}
 	
 	public static void main(String[] args) throws SQLException
 	{
-		Triple triple = new Triple("王博", "pWorkPro", "?x");
+		Connection conn = MySQLUtils.getInstance().getConnection();
+		Triple triple = new Triple("叶凡", "pWorkPro", "?x");
 		Matcher.getInstance().getFacts(triple);
 	}
 }

@@ -20,11 +20,23 @@ public class TripleSearch {
 	
 	private TripleSearch(){}
 	
+	/**
+	 * 不通过推理，直接通过三元组从事实知识库中查找结果
+	 * @param tripleQuery
+	 * @return
+	 * @throws SQLException
+	 */
 	public List<String> search(Triple tripleQuery) throws SQLException
 	{
 		return Fact.getInstance().getFacts(tripleQuery);
 	}
 	
+	/**
+	 * 通过推理获取结果
+	 * @param tripleQuery
+	 * @return
+	 * @throws SQLException
+	 */
 	public HashMap<String, String> searchWithReasoner(Triple tripleQuery) throws SQLException
 	{
 		return Matcher.getInstance().getFacts(tripleQuery);
