@@ -21,9 +21,9 @@ public class MySQLUtils {
 	public Connection getConnection()
 	{
 		String driverClassName = "com.mysql.jdbc.Driver";
-		String url = "jdbc:mysql://192.168.10.79:3306/techsearch"; 
-		String username = "techsearch";
-		String password = "techsearch123";
+		String url = "jdbc:mysql://127.0.0.1:3306/inference"; 
+		String username = "inference";
+		String password = "inference";
 		Connection conn = null;
 		try {  
             Class.forName(driverClassName);//指定连接类型  
