@@ -7,25 +7,25 @@ public class Rule {
 	/**
 	 * 解析数据库中的规则字符串，存储到Rule结构中
 	 */
-	public List<Triple> leftHandSide;
-	public Triple rightHandSide;
+	public List<RuleTriple> leftHandSide;
+	public RuleTriple rightHandSide;
 	
-	private List<Triple> leftHandSideRuleParse(String leftHandSideRule)
+	private List<RuleTriple> leftHandSideRuleParse(String leftHandSideRule)
 	{
-		List<Triple> leftHandSideRules = new ArrayList<Triple>();
+		List<RuleTriple> leftHandSideRules = new ArrayList<RuleTriple>();
 		String[] leftStringRules = leftHandSideRule.split("\\+");
 		for(String stringRule : leftStringRules)
 		{
 			String[] tmp = stringRule.split("_");
-			leftHandSideRules.add(new Triple(tmp[0], tmp[1], tmp[2]));
+			leftHandSideRules.add(new RuleTriple(tmp[0], tmp[1], tmp[2]));
 		}
 		return leftHandSideRules;
 	}
 	
-	private Triple rightHandSideRuleParse(String rightHandSideRule)
+	private RuleTriple rightHandSideRuleParse(String rightHandSideRule)
 	{
 		String[] tmp = rightHandSideRule.split("_");
-		return new Triple(tmp[0], tmp[1], tmp[2]);
+		return new RuleTriple(tmp[0], tmp[1], tmp[2]);
 	}
 	
 	public Rule(String leftHandSideRule, String rightHandSideRule)

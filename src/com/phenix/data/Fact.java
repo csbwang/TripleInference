@@ -8,15 +8,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import com.phenix.search.Search;
 
 public class Fact {
 	
 	private static final Fact Instance = new Fact();
 	public HashMap<String,String> relationViews = null;
+	private Connection conn = null;
 	
-	public static Fact getInstance() throws SQLException
+	//传入Connection，因为relationViews需要外部调用，在使用时必须先初始化
+	public static Fact getInstance(Connection conn) throws SQLException
 	{	
+		if(Instance.conn == null)
+			Instance.conn = conn;
 		if(Instance.relationViews == null)
 			Instance.getRelationViews();
 		return Instance;
@@ -30,10 +33,9 @@ public class Fact {
 	 */
 	private void getRelationViews() throws SQLException
 	{
-		Connection conn = Search.conn;
 		HashMap<String, String> relationViews = new HashMap<String, String>();
 		String sql = "select * from inference_relations";
-		Statement stmt = conn.createStatement();
+		Statement stmt = Instance.conn.createStatement();
 		ResultSet rs = stmt.executeQuery(sql);
 		try {
 			while(rs.next())
@@ -49,20 +51,20 @@ public class Fact {
 		this.relationViews = relationViews;
 	}
 	/**
-	 * 将三元组转化为sql查询语句
+	 * 将三元组转化为sql查询语句，采用实体id查询id和value
 	 * @param tripleQuery
 	 * @return
 	 */
-	private String getEntitySearchSql(Triple tripleQuery)
+	private String getEntitySearchSql(FactTriple tripleQuery)
 	{	
 		if(!this.relationViews.containsKey(tripleQuery.relation))
 			return null;
-		if(tripleQuery.entity_1.equals("?x"))
-			return  "select e1_value from " + this.relationViews.get(tripleQuery.relation) + " where e2_value=" + "\"" + 
-				tripleQuery.entity_2 + "\"";
-		if(tripleQuery.entity_2.equals("?x"))
-			return  "select e2_value from " + this.relationViews.get(tripleQuery.relation) + " where e1_value=" + "\"" + 
-				tripleQuery.entity_1 + "\"";
+		if(tripleQuery.entity_1.id.equals("?x"))
+			return  "select e1_id, e1_value from " + this.relationViews.get(tripleQuery.relation) + " where e2_id=" + "\"" + 
+				tripleQuery.entity_2.id + "\"";
+		if(tripleQuery.entity_2.id.equals("?x"))
+			return  "select e2_id, e2_value from " + this.relationViews.get(tripleQuery.relation) + " where e1_id=" + "\"" + 
+				tripleQuery.entity_1.id + "\"";
 		else
 			return null;
 	}
@@ -73,21 +75,19 @@ public class Fact {
 	 * @return
 	 * @throws SQLException
 	 */
-	public List<String> getFacts(Triple tripleQuery) throws SQLException
+	public List<Entity> getFacts(FactTriple tripleQuery) throws SQLException
 	{
 		String sql = getEntitySearchSql(tripleQuery);
 		if(sql == null)
 			return null;
-		List<String> facts = new ArrayList<String>();
-//		System.out.println(sql);
-		Connection conn = Search.conn;
-		Statement stmt = conn.createStatement();
+		List<Entity> facts = new ArrayList<Entity>();
+		Statement stmt = Instance.conn.createStatement();
 		ResultSet rs = stmt.executeQuery(sql);
 		while(rs.next())
 		{
 			if(rs.getString(1)==null || rs.getString(1).equals("") || rs.getString(1).length()==0)
 				continue;
-			facts.add(rs.getString(1));
+			facts.add(new Entity(rs.getString(1), rs.getString(2)));
 		}
 		if(facts.size() > 0)
 			return facts;

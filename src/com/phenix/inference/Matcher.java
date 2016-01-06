@@ -8,11 +8,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import com.phenix.data.Entity;
 import com.phenix.data.Fact;
 import com.phenix.data.Rule;
-import com.phenix.data.Triple;
-import com.phenix.search.Search;
+import com.phenix.data.FactTriple;
+import com.phenix.data.RuleTriple;
 import com.phenix.utils.MySQLUtils;
+
+import edu.ecnu.ica.techsearch.iface.InferPeopleItem;
 
 public class Matcher {
 	private static final Matcher Instance = new Matcher();
@@ -20,8 +23,6 @@ public class Matcher {
 	
 	public static Matcher getInstance()
 	{
-		if(Instance.ruleBase == null)
-			Instance.initRuleBase();
 		return Instance;
 	}
 	
@@ -30,9 +31,8 @@ public class Matcher {
 	/**
 	 * 初始化规则库
 	 */
-	private void initRuleBase()
+	private void initRuleBase(Connection conn)
 	{
-		Connection conn = Search.conn;
 		List<Rule> ruleBase = new ArrayList<Rule>();
 		String sql = "select * from inference_rules";
 		try {
@@ -42,7 +42,7 @@ public class Matcher {
 			{
 				ruleBase.add(new Rule(rs.getString(2), rs.getString(3)));
 			}
-		} catch (SQLException e) {
+		} catch (Exception e) {
 			System.out.println(e);
 		}
 		this.ruleBase = ruleBase;
@@ -53,13 +53,15 @@ public class Matcher {
 	 * @param triple
 	 * @return
 	 */
-	private List<Rule> getVaildRules(Triple tripleQuery)
+	private List<Rule> getVaildRules(FactTriple tripleQuery, Connection conn)
 	{
+		if(this.ruleBase == null)
+			this.initRuleBase(conn);
 		List<Rule> vaildRules = new ArrayList<Rule>();
 		for(Rule rule : ruleBase)
 		{
 			if(tripleQuery.relation.equals(rule.rightHandSide.relation))
-				vaildRules.add(rule);		
+				vaildRules.add(rule);
 		}
 		return vaildRules;
 	}
@@ -69,7 +71,7 @@ public class Matcher {
 	 * @param rhs
 	 * @return
 	 */
-	private String getHiddenEntity(Triple rhs)
+	private String getHiddenEntity(RuleTriple rhs)
 	{
 		HashMap<String, String> tripleTag = new HashMap<String, String>();
 		tripleTag.put(rhs.entity_1, "e");
@@ -82,28 +84,44 @@ public class Matcher {
 	
 	/**
 	 * 返回推理结果的解释
-	 * @param tripleTag
+	 * @param ruleTripleTag
 	 * @param rule
 	 * @return
 	 */
-	private String getReason(HashMap<String, String> tripleTag, Rule rule)
+	private String getReason(HashMap<String, Entity> ruleTripleTag, Rule rule)
 	{
-		String reason = "(" + tripleTag.get(rule.leftHandSide.get(0).entity_1) + "," + rule.leftHandSide.get(0).relation + "," + tripleTag.get(rule.leftHandSide.get(0).entity_2)
-				+ ") + (" + tripleTag.get(rule.leftHandSide.get(1).entity_1) + "," + rule.leftHandSide.get(1).relation + "," + tripleTag.get(rule.leftHandSide.get(1).entity_2)
-				+ ") -> (" +tripleTag.get(rule.rightHandSide.entity_1) + "," + rule.rightHandSide.relation + "," + tripleTag.get(rule.rightHandSide.entity_2) + ")";
+		String reason = "(" + ruleTripleTag.get(rule.leftHandSide.get(0).entity_1).value + "," + rule.leftHandSide.get(0).relation + "," + ruleTripleTag.get(rule.leftHandSide.get(0).entity_2).value
+				+ ") + (" + ruleTripleTag.get(rule.leftHandSide.get(1).entity_1).value + "," + rule.leftHandSide.get(1).relation + "," + ruleTripleTag.get(rule.leftHandSide.get(1).entity_2).value
+				+ ") -> (" +ruleTripleTag.get(rule.rightHandSide.entity_1).value + "," + rule.rightHandSide.relation + "," + ruleTripleTag.get(rule.rightHandSide.entity_2).value + ")";
 		return reason;
 	}
 	
 	/**
-	 * 根据可用规则在数据库中检索可用的Facts
+	 * 根据可用规则进行推理
 	 * @throws SQLException 
 	 */
-	public HashMap<String, String> getFacts(Triple tripleQuery) throws SQLException
+	public HashMap<Entity, String> getInferenceResult(FactTriple tripleQuery, Connection conn) throws SQLException
 	{
-		List<Rule> vaildRules = getVaildRules(tripleQuery);
-		HashMap<String, String> result = new HashMap<String, String>();
-		HashMap<String, String> tripleTag = new HashMap<String, String>();
-		HashMap<String, String> ruleTripleTag = new HashMap<String, String>();
+		//获取可用规则
+		List<Rule> vaildRules = getVaildRules(tripleQuery, conn);
+		//获取推理结果
+		HashMap<Entity, String> result = new HashMap<Entity, String>();
+		
+		
+		//测试
+		List<InferPeopleItem> techsearchResult = new ArrayList<InferPeopleItem>();
+		InferPeopleItem ip = new InferPeopleItem();
+		ip.peopleId = "a";
+		ip.peopleName = "a_name";
+		ip.explain = "aaaaa";
+		techsearchResult.add(ip);
+		
+		
+		HashMap<String, Entity> tripleTag = new HashMap<String, Entity>();
+		//记录映射，方便写出推理依据
+		HashMap<String, Entity> ruleTripleTag = new HashMap<String, Entity>();
+		//记录推理获得的实体id列表，方便去重
+		List<String> entityIdList = new ArrayList<String>();
 		outer:
 		for(Rule rule : vaildRules)
 		{
@@ -111,28 +129,28 @@ public class Matcher {
 				tripleTag.clear();
 			if(!ruleTripleTag.isEmpty())
 				ruleTripleTag.clear();
-			List<String> eSet = null;
-			Triple rhs = rule.rightHandSide;//规则结果
+			List<Entity> eSet = null;
+			RuleTriple rhs = rule.rightHandSide;//规则结果
 			tripleTag.put(rhs.entity_1, tripleQuery.entity_1);
 			tripleTag.put(rhs.entity_2, tripleQuery.entity_2);
-			Triple condition1=null;
-			for(Triple condition: rule.leftHandSide)//规则条件
+			RuleTriple condition1=null;
+			for(RuleTriple condition: rule.leftHandSide)//规则条件
 			{
 				//此条件中的关系不存在，则放弃这条规则
-				if(!Fact.getInstance().relationViews.containsKey(condition.relation))
+				if(!Fact.getInstance(conn).relationViews.containsKey(condition.relation))
 					continue outer;
-				if((tripleTag.containsKey(condition.entity_1) && !tripleTag.get(condition.entity_1).equals("?x")) ||
-						(tripleTag.containsKey(condition.entity_2) && !tripleTag.get(condition.entity_2).equals("?x")))
+				if((tripleTag.containsKey(condition.entity_1) && !tripleTag.get(condition.entity_1).id.equals("?x")) ||
+						(tripleTag.containsKey(condition.entity_2) && !tripleTag.get(condition.entity_2).id.equals("?x")))
 				{
 					if(tripleTag.containsKey(condition.entity_1))
 					{
-						Triple factSearchTriple = new Triple(tripleTag.get(condition.entity_1), condition.relation, "?x");
-						eSet = Fact.getInstance().getFacts(factSearchTriple);
+						FactTriple factSearchTriple = new FactTriple(tripleTag.get(condition.entity_1), condition.relation, new Entity("?x", "?x"));
+						eSet = Fact.getInstance(conn).getFacts(factSearchTriple);
 					}
 					else
 					{
-						Triple factSearchTriple = new Triple("?x", condition.relation, tripleTag.get(condition.entity_2));
-						eSet = Fact.getInstance().getFacts(factSearchTriple);
+						FactTriple factSearchTriple = new FactTriple(new Entity("?x", "?x"), condition.relation, tripleTag.get(condition.entity_2));
+						eSet = Fact.getInstance(conn).getFacts(factSearchTriple);
 					}
 					//如果这个condition是可查询的triple，则先使用这个条件，推出循环
 					condition1 = condition;
@@ -140,36 +158,38 @@ public class Matcher {
 				}
 			}
 			if(eSet == null)continue;
-			Triple condition2 = null;
-			for(Triple condition: rule.leftHandSide)
+			RuleTriple condition2 = null;
+			for(RuleTriple condition: rule.leftHandSide)
 			{
 				if(condition1!=condition)
 					condition2 = condition;
 			}
 			//此条件中的关系不存在，则放弃这条规则
-			if(!Fact.getInstance().relationViews.containsKey(condition2.relation))
+			if(!Fact.getInstance(conn).relationViews.containsKey(condition2.relation))
 				continue;
-			List<String> eSet2 = null;
+			List<Entity> eSet2 = null;
 			if(eSet != null)
 			{
-				for(String e : eSet)
+				for(Entity e : eSet)
 				{
 					if(tripleTag.containsKey(condition2.entity_1))
 					{
-						Triple factSearchTriple = new Triple(tripleTag.get(condition2.entity_1), condition2.relation, e);
-						eSet2 = Fact.getInstance().getFacts(factSearchTriple);
+						FactTriple factSearchTriple = new FactTriple(tripleTag.get(condition2.entity_1), condition2.relation, e);
+						eSet2 = Fact.getInstance(conn).getFacts(factSearchTriple);
 					}
 					else
 					{
-						Triple factSearchTriple = new Triple(e, condition2.relation, tripleTag.get(condition2.entity_2));
-						eSet2 = Fact.getInstance().getFacts(factSearchTriple);
+						FactTriple factSearchTriple = new FactTriple(e, condition2.relation, tripleTag.get(condition2.entity_2));
+						eSet2 = Fact.getInstance(conn).getFacts(factSearchTriple);
 					}
-					String firstEntity = tripleQuery.entity_1.equals("?x") ? tripleQuery.entity_2: tripleQuery.entity_1;
-					for(String eTmp : eSet2)
+					Entity firstEntity = tripleQuery.entity_1.id.equals("?x") ? tripleQuery.entity_2: tripleQuery.entity_1;
+					for(Entity eTmp : eSet2)
 					{
 						if( (!eTmp.equals(e)) && (!eTmp.equals(firstEntity)) )
 						{
-							if(tripleQuery.entity_1.equals("?x"))
+							if(entityIdList.contains(eTmp.id))
+								continue;
+							if(tripleQuery.entity_1.id.equals("?x"))
 							{
 								ruleTripleTag.put(rhs.entity_1, eTmp);
 								ruleTripleTag.put(rhs.entity_2, tripleQuery.entity_2);
@@ -184,6 +204,7 @@ public class Matcher {
 //							System.out.println(eTmp);
 //							System.out.println(this.getReason(ruleTripleTag, rule));
 							result.put(eTmp, this.getReason(ruleTripleTag, rule));
+							entityIdList.add(eTmp.id);
 						}
 					}
 				}
@@ -194,8 +215,8 @@ public class Matcher {
 	
 	public static void main(String[] args) throws SQLException
 	{
-		Connection conn = MySQLUtils.getInstance().getConnection();
-		Triple triple = new Triple("叶凡", "pWorkPro", "?x");
-		Matcher.getInstance().getFacts(triple);
+		/*Connection conn = MySQLUtils.getInstance().getConnection();
+		FactTriple triple = new FactTriple(new Entity("叶凡", "lalal"), "pWorkPro", new Entity("?x", "?x"));
+		Matcher.getInstance().getInferenceResult(triple, conn);*/
 	}
 }

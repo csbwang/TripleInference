@@ -34,6 +34,7 @@ public class MySQLUtils {
 		return conn;
 	}
     
+	/*
     public static void main(String[] args) throws Exception{
     	Connection conn =  MySQLUtils.getInstance().getConnection();
     	Statement stmt = conn.createStatement();
@@ -44,5 +45,6 @@ public class MySQLUtils {
     		System.out.println(rs.getString(2));
     	}
     }
+    */
     
 }

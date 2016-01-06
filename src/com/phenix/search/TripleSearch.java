@@ -1,13 +1,15 @@
 package com.phenix.search;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
+import com.phenix.data.Entity;
 import com.phenix.data.Fact;
-import com.phenix.data.Triple;
+import com.phenix.data.FactTriple;
 import com.phenix.inference.Matcher;
 
 public class TripleSearch {
@@ -26,9 +28,9 @@ public class TripleSearch {
 	 * @return
 	 * @throws SQLException
 	 */
-	public List<String> search(Triple tripleQuery) throws SQLException
+	public List<Entity> search(FactTriple tripleQuery, Connection conn) throws SQLException
 	{
-		return Fact.getInstance().getFacts(tripleQuery);
+		return Fact.getInstance(conn).getFacts(tripleQuery);
 	}
 	
 	/**
@@ -37,26 +39,26 @@ public class TripleSearch {
 	 * @return
 	 * @throws SQLException
 	 */
-	public HashMap<String, String> searchWithReasoner(Triple tripleQuery) throws SQLException
+	public HashMap<Entity, String> searchWithReasoner(FactTriple tripleQuery, Connection conn) throws SQLException
 	{
-		return Matcher.getInstance().getFacts(tripleQuery);
+		return Matcher.getInstance().getInferenceResult(tripleQuery, conn);
 	}
 	
-	public HashMap<String, String> getAnswer(Triple tripleQuery) throws SQLException
+	public HashMap<Entity, String> getAnswer(FactTriple tripleQuery, Connection conn) throws SQLException
 	{
-		HashMap<String, String> result = new HashMap<String, String>();
-		List<String> searchResult = search(tripleQuery);
+		HashMap<Entity, String> result = new HashMap<Entity, String>();
+		List<Entity> searchResult = search(tripleQuery, conn);
 		if(searchResult != null)
 		{
-			for(String sRes : searchResult)
+			for(Entity sRes : searchResult)
 			{
 				result.put(sRes, "直接检索得到");
 			}
 		}
-		HashMap<String, String> InferenceResult = searchWithReasoner(tripleQuery);
+		HashMap<Entity, String> InferenceResult = searchWithReasoner(tripleQuery, conn);
 		if(!InferenceResult.isEmpty())
 		{
-			for(Map.Entry<String, String> entry : InferenceResult.entrySet())
+			for(Map.Entry<Entity, String> entry : InferenceResult.entrySet())
 			{
 				if(!result.containsKey(entry.getKey()))
 				{
@@ -65,22 +67,5 @@ public class TripleSearch {
 			}
 		}
 		return result;
-	}
-	
-	public static void main(String[] args) throws SQLException
-	{
-		Scanner in = new Scanner(System.in);
-		String query = null;
-		for(int i = 0;i<10;i++){
-			query = in.nextLine();
-			String[] tmpArray = query.split(" ");
-			Triple tripleQuery = new Triple(tmpArray[0], tmpArray[1], tmpArray[2]);
-			HashMap<String, String> result = TripleSearch.getInstance().getAnswer(tripleQuery);
-			for(Map.Entry<String, String> entry : result.entrySet())
-			{
-				System.out.println(entry.getKey() + "：" + entry.getValue());
-			}
-			
-		}
 	}
 }

@@ -9,5 +9,11 @@ public class Entity {
 		this.id = id;
 		this.value = value;
 	}
-
+	
+	public boolean equals(Entity entity)
+	{
+		if((this.id.equals(entity.id)) && (this.value.equals(entity.value)))
+			return true;
+		return false;
+	}
 }
