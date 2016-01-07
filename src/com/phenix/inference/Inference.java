@@ -67,14 +67,39 @@ public class Inference {
 		List<InferPeopleItem> peopleTnferenceResult = new ArrayList<InferPeopleItem>();
 		InferPeopleItem item = null;
 		HashMap<Entity, String> inferenceResult = null;
-		List<String> peopleIdList = new ArrayList<String>();
+		HashMap<Entity, String> inferenceResultTemp = null;
+		HashMap<String, Entity> peopleIdExplain = new HashMap<String, Entity>();
+		
 		try
 		{
-		String peopleName = getEntityName(peopleId, "peopleId");
-		inferenceResult = Matcher.getInstance().
-				getInferenceResult(new FactTriple(new Entity(peopleId, peopleName), "WorkAff", new Entity("?x", "?x")), conn);
-		inferenceResult.putAll(Matcher.getInstance().
-				getInferenceResult(new FactTriple(new Entity(peopleId, peopleName), "pWorkPro", new Entity("?x", "?x")), conn));
+			String peopleName = getEntityName(peopleId, "peopleId");
+			inferenceResult = Matcher.getInstance().
+					getInferenceResult(new FactTriple(new Entity(peopleId, peopleName), "WorkAff", new Entity("?x", "?x")), conn);
+			
+			// peopleIdExplain 用于去重
+			for(Map.Entry<Entity, String> entry : inferenceResult.entrySet())
+			{
+				peopleIdExplain.put(entry.getKey().id, entry.getKey());
+			}
+			
+			inferenceResultTemp = Matcher.getInstance().
+					getInferenceResult(new FactTriple(new Entity(peopleId, peopleName), "pWorkPro", new Entity("?x", "?x")), conn);
+			
+			for(Map.Entry<Entity, String> entry : inferenceResultTemp.entrySet())
+			{
+				Entity entity= null;
+				String explain = null;
+				entity = peopleIdExplain.get(entry.getKey().id);
+				if(entity != null)
+				{
+					explain = entry.getValue() + "|" + inferenceResult.get(entity);
+					inferenceResult.put(entity, explain);
+				}
+				else
+				{
+					inferenceResult.put(entry.getKey(), entry.getValue());
+				}	
+			}
 		}
 		catch(Exception e)
 		{
@@ -83,14 +108,11 @@ public class Inference {
 		}
 		for(Map.Entry<Entity, String> entry : inferenceResult.entrySet())
 		{
-			if(peopleIdList.contains(entry.getKey().id))
-				continue; // 人名结果去重
 			item = new InferPeopleItem();
 			item.peopleId = entry.getKey().id;
 			item.peopleName = entry.getKey().value;
 			item.explain = entry.getValue();
 			peopleTnferenceResult.add(item);
-			peopleIdList.add(item.peopleId);
 		}
 		if(peopleTnferenceResult.size()>0)
 			return peopleTnferenceResult;
@@ -99,17 +121,17 @@ public class Inference {
 	
 	public static void main(String[] args)
 	{
-//		Connection conn = MySQLUtils.getInstance().getConnection();
-//		List<InferPeopleItem> res = new Inference(conn).peopleInfer("叶凡");
-//		if(res==null)System.out.println("null");
-//		else
-//		{
-//			for(InferPeopleItem item: res)
-//			{
-//				System.out.println(item.peopleId);
-//				System.out.println(item.peopleName);
-//				System.out.println(item.explain + "\n");
-//			}	
-//		}
+		Connection conn = MySQLUtils.getInstance().getConnection();
+		List<InferPeopleItem> res = new Inference(conn).peopleInfer("叶凡");
+		if(res==null)System.out.println("null");
+		else
+		{
+			for(InferPeopleItem item: res)
+			{
+				System.out.println(item.peopleId);
+				System.out.println(item.peopleName);
+				System.out.println(item.explain + "\n");
+			}	
+		}
 	}
 }
